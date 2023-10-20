@@ -1,8 +1,13 @@
 /*!
- *  Copyright (c) 2023 by Contributors
+*  Copyright (c) 2023 by Contributors
+ *  Originally licensed under the Apache License 2.0.
+ *  See the LICENSE-APACHE file in this repository or visit 
+ *  https://github.com/mlc-ai/tokenizers-cpp/blob/main/LICENSE for details.
+ * 
  * \file tokenizers_c.h
  * \brief C binding to tokenizers rust library
  */
+
 #ifndef TOKENIZERS_C_H_
 #define TOKENIZERS_C_H_
 
