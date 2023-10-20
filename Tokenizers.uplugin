@@ -1,0 +1,25 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Tokenizers",
+	"Description": "",
+	"Category": "Other",
+	"CreatedBy": "P1ayer-1",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+		
+			"Name": "Tokenizers",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
