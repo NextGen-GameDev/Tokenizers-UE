@@ -4,7 +4,11 @@
 #include "TokenizerWrapper.h"
 
 #include <TokenizersLibrary/tokenizers_c.h>
-
+#include <vector>
+#include <string>
+#include "Containers/Array.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Interfaces/IPluginManager.h"
 
 UTokenizerWrapper::UTokenizerWrapper()

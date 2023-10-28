@@ -4,7 +4,7 @@
 	"VersionName": "0.1",
 	"FriendlyName": "Tokenizers",
 	"Description": "",
-	"Category": "Other",
+	"Category": "AI",
 	"CreatedBy": "P1ayer-1",
 	"CreatedByURL": "",
 	"DocsURL": "",
@@ -18,7 +18,10 @@
 		{
 			"Name": "Tokenizers",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64"
+			]
 		}
 	]
 }
