@@ -25,7 +25,6 @@ public class Tokenizers : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"TokenizersLibrary",
-				
 				"Projects"
 				// ... add other public dependencies that you statically link with here ...
 			}
