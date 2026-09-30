@@ -35,7 +35,7 @@ public class Tokenizers : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				// ... add private dependencies that you statically link with here ...	
+				"Json", // goldens parsing in the Tokenizers.Parity / Tokenizers.Stress automation tests
 			}
 			);
 		
