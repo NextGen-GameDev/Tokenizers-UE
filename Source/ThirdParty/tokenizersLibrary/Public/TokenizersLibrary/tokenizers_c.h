@@ -63,6 +63,18 @@ int tokenizers_encode(TokenizerHandle handle, const char* data, size_t len, int 
 int tokenizers_encode_batch(TokenizerHandle handle, const char** data, size_t* len, size_t num_seqs,
                             int add_special_token, TokenizerEncodeResult* results);
 
+/* Like tokenizers_encode_batch, plus HF truncation of each item to max_length tokens
+   (special tokens included, as HF does). max_length == 0 -> no truncation (identical to
+   tokenizers_encode_batch). Truncation params: tokenizers crate TruncationParams with
+   max_length set, strategy LongestFirst, stride 0, direction Right.
+   The handle's own truncation/padding config (from tokenizer.json) is restored before
+   returning, on success and on failure. Failure rules are the same as tokenizers_encode_batch.
+   max_length smaller than the number of added special tokens: whatever the crate does
+   (Python tokenizers 0.22.2 returns the item UNtruncated, no error); any crate Err -> ERR_TOKENIZER. */
+int tokenizers_encode_batch_truncated(TokenizerHandle handle, const char** data, size_t* len,
+                                      size_t num_seqs, int add_special_token, size_t max_length,
+                                      TokenizerEncodeResult* results);
+
 /* NULL results, or entries with token_ids == NULL, are skipped. After freeing an entry it
    sets token_ids = NULL, len = 0 (so a double free is harmless). */
 void tokenizers_free_encode_results(TokenizerEncodeResult* results, size_t num_seqs);

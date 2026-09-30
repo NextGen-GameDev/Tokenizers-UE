@@ -38,8 +38,8 @@ param(
 
 # ---- Pin --------------------------------------------------------------------------------
 $RepoUrl    = 'https://github.com/P1ayer-1/tokenizers-cpp'
-$RepoTag    = 'v0.1.3'
-$RepoCommit = '162c85b86866c932d22a3e7bf00e03229415591e'
+$RepoTag    = 'v0.1.4'
+$RepoCommit = '44bd5cabadf32681acee3d7ff8861712f498ef83'
 
 $CargoTarget = 'x86_64-pc-windows-msvc'
 $Crt         = 'MD'
