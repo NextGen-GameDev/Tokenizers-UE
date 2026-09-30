@@ -83,14 +83,26 @@ bool UTokenizerWrapper::InitializeTokenizerFromFile(FString const FileName)
 
 TArray<int32> UTokenizerWrapper::Encode(FString Text)
 {
-	std::string const TextStd(TCHAR_TO_UTF8(*Text)); // FString to std::string
-	tokenizers_encode(Tokenizer, TextStd.data(), TextStd.length(), 0);
-	const uint32_t* data;
-	size_t len;
-	tokenizers_get_encode_ids(Tokenizer, &data, &len);
-	std::vector<int32_t> const Encoded = std::vector<int32_t>(data, data + len);
-	return ConvertVectorToTArray(Encoded);
+	TArray<int32> Ids;
+	if (Tokenizer == nullptr)
+	{
+		return Ids;
+	}
 
+	// UTF-8 bytes with an explicit length; no terminator is passed.
+	FTCHARToUTF8 Utf8(*Text);
+
+	// token_ids is allocated by the library; free it only with tokenizers_free_encode_results.
+	TokenizerEncodeResult Result{};
+	const int Status = tokenizers_encode(Tokenizer, Utf8.Get(), static_cast<size_t>(Utf8.Length()), 0, &Result);
+	// A result longer than TArray<int32> can index is dropped (empty result), never truncated.
+	if (Status == TOKENIZERS_OK && Result.token_ids != nullptr && Result.len > 0
+		&& Result.len <= static_cast<size_t>(MAX_int32))
+	{
+		Ids.Append(reinterpret_cast<const int32*>(Result.token_ids), static_cast<int32>(Result.len));
+	}
+	tokenizers_free_encode_results(&Result, 1);
+	return Ids;
 }
 
 FString UTokenizerWrapper::Decode(TArray<int32> Ids)
