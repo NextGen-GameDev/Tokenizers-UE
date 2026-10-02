@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `GetVocabSize`: vocabulary size including added tokens (-1 when not initialized).
+
 ## 0.2.0 (2026-09-30)
 
 ### Added
