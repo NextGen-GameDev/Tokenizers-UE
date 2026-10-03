@@ -6,6 +6,14 @@
 
 - `GetVocabSize`: vocabulary size including added tokens (-1 when not initialized).
 
+### Changed
+
+- The library is now tokenizers-cpp fork v0.1.5.
+
+### Fixed
+
+- tokenizer.json padding no longer leaks into Encode/EncodeBatch.
+
 ## 0.2.0 (2026-09-30)
 
 ### Added
