@@ -20,15 +20,15 @@ Here are some important resources:
 
 ## How to Contribute
 
-1. **Fork and Clone:** Start by [forking the repo](https://github.com/P1ayer-1/Tokenizers-UE5/fork) and [cloning your fork locally](https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository).
-2. **Find an Issue:** Look for [open issues](https://github.com/P1ayer-1/Tokenizers-UE5/issues?q=is%3Aissue+is%3Aopen) that interest you or [open a new one](https://github.com/P1ayer-1/Tokenizers-UE5/issues/new).
+1. **Fork and Clone:** Start by [forking the repo](https://github.com/NextGen-GameDev/Tokenizers-UE/fork) and [cloning your fork locally](https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository).
+2. **Find an Issue:** Look for [open issues](https://github.com/NextGen-GameDev/Tokenizers-UE/issues?q=is%3Aissue+is%3Aopen) that interest you or [open a new one](https://github.com/NextGen-GameDev/Tokenizers-UE/issues/new).
 3. **Make Your Changes:** Work on the issue in your local environment.
-4. **Submit a Pull Request:** Push your changes to your fork and [open a pull request](https://github.com/P1ayer-1/Tokenizers-UE5/compare) against our repository.
+4. **Submit a Pull Request:** Push your changes to your fork and [open a pull request](https://github.com/NextGen-GameDev/Tokenizers-UE/compare) against our repository.
 
 
 ### Submitting changes
 
-Please send a [GitHub Pull Request to Tokenizers-UE5](https://github.com/P1ayer-1/Tokenizers-UE5/compare) with a clear list of what you've done (read more about [pull requests](http://help.github.com/pull-requests/)).  
+Please send a [GitHub Pull Request to Tokenizers-UE](https://github.com/NextGen-GameDev/Tokenizers-UE/compare) with a clear list of what you've done (read more about [pull requests](http://help.github.com/pull-requests/)).  
 Please follow our coding conventions (below) and make sure all of your commits are atomic (one feature per commit).
 
 Join the [Discord server](https://discord.gg/AWWECeRcyX) if you have any questions and to chat with fellow contributors.
@@ -44,6 +44,10 @@ One-line messages are fine for small changes, but bigger changes should look lik
     > A paragraph describing what changed and its impact.
     > 
     > A paragraph describing relevant background information and/or why you are opening the Pull Request (If applicable)."
+
+### Building the native library
+
+The plugin links `Source/ThirdParty/tokenizersLibrary/x64/Release/tokenizers_c.lib`, which is not in git. Build it with `Scripts/BuildTokenizersLib.ps1` (PowerShell 5.1). It clones [P1ayer-1/tokenizers-cpp](https://github.com/P1ayer-1/tokenizers-cpp) at tag `v0.1.4` and builds it. You need git, Rust (target `x86_64-pc-windows-msvc`) and Visual Studio 2022 with the MSVC 14.44 toolset. Parameters: `-WorkDir` (must be outside the plugin folder), `-MsvcToolset`, `-Clean`. See the README for details.
 
 ### Coding conventions
 

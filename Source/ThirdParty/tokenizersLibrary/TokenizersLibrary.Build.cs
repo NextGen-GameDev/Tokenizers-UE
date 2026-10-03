@@ -15,7 +15,8 @@ public class TokenizersLibrary : ModuleRules
 			// Add the import library
 			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "x64", "Release", "tokenizers_c.lib"));
 
-			PublicSystemLibraries.AddRange(new string[] { "bcrypt.lib", "ws2_32.lib", "ntdll.lib", "Userenv.lib" });
+			// From native-static-libs in x64/Release/tokenizers_c.buildinfo.json (minus CRT libs UE already links).
+			PublicSystemLibraries.AddRange(new string[] { "ntdll.lib", "userenv.lib", "ws2_32.lib", "dbghelp.lib" });
 
 
 		}

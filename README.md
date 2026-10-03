@@ -1,137 +1,193 @@
-<div id="top"></div>
+# Tokenizers
 
-<div align="center">
-  <a href="https://github.com/P1ayer-1/Tokenizers-UE5">
-    <img src="Resources/Icon128.png" alt="Logo" width="128" height="128">
-  </a>
-<h3 align="center">Tokenizers</h3>
-  <p align="center">HuggingFace Tokenizers in UE</p>
+Hugging Face tokenizers (`tokenizer.json`) for Unreal Engine: encode, decode and padded batches, thread-safe, via a Rust static library. Works from C++ and Blueprints.
 
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url] 
-</div>
+Repo: https://github.com/NextGen-GameDev/Tokenizers-UE. Author: P1ayer-1.
 
+Contents: [What it is](#what-it-is) | [Install](#install) | [Quick start](#quick-start) | [API reference](#api-reference) | [Threading](#threading) | [Errors](#errors) | [Testing](#testing) | [License](#license) | [Credits](#credits)
 
-<div align="center">
+## What it is
 
-[![](https://dcbadge.limes.pink/api/server/AWWECeRcyX?theme=default-inverted)](https://discord.gg/AWWECeRcyX)
-</div>
+Tokenizers turns text into token ids and back, using a Hugging Face `tokenizer.json` file. You need this before you can feed text to most language models.
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+You can:
 
+- Load a tokenizer from a JSON string or from a file.
+- Encode text to ids, with or without special tokens such as `[CLS]` and `[SEP]`.
+- Decode ids back to text, keeping or skipping special tokens.
+- Encode a batch of texts into padded, optionally truncated arrays with an attention mask.
+- Do all of this from Blueprints and C++.
 
-<details open>
-  <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#about-the-plugin">About the Plugin</a>
-    </li>
-    <li><a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#setup">Setup</a></li>
-      </ul>
-    </li>
-    <li><a href="#guides-and-tutorials">Guides and Tutorials</a>
-      <ul>
-        <li><a href="#youtube-tutorials">YouTube Tutorials</a></li>
-        <li><a href="#wiki">Wiki</a></li>
-      </ul>
-    </li>
-    <li>
-      <a href="#contributing">Contributing</a>
-    </li>
-    <li>
-      <a href="#license">Credits and Licenses</a>
-    </li>
-  </ol>
-</details>
+The plugin never crashes on bad input. Calls return `false` or an empty result, and `GetLastError` tells you why.
 
-<div id="about-the-plugin"></div>
+Platform: Win64 only.
 
-## About the Plugin
+## Install
 
-Tokenizers is an _experimental_ plugin which enables developers to use tokenizers inside Unreal Engine's environment.
+### Engine versions
 
-With this plugin you can:
-* Initialize tokenizers from JSON blob or file configuration
-* Encode and Decode text
-* Use every feature in both C++ and Blueprints
-<p align="right">(<a href="#top">back to top</a>)</p>
+Built and tested on UE 5.8 (5.8.3). UE 5.6 has not been tested.
 
-<div id="getting-started"></div>
+| Engine | Status |
+|---|---|
+| UE 5.8 | Built (BuildPlugin) and tested: 86/86 automation tests |
+| UE 5.7 | Built (BuildPlugin); tests not run on 5.7 |
+| UE 5.6 | Not tested |
 
-## Getting Started
+### Steps
 
-To use this plugin, you'll need the C static library from [Tokenizers-cpp](https://github.com/mlc-ai/tokenizers-cpp.git). You can either download it directly from the [Releases page](https://github.com/P1ayer-1/Tokenizers-UE5/releases) of this repository or compile it yourself from the [Tokenizers-cpp source](https://github.com/mlc-ai/tokenizers-cpp.git).
+1. Copy this folder into your project's `Plugins` folder, so the plugin is at `<Project>/Plugins/Tokenizers-UE/`.
+2. Build the native library (next section). The library file is not in git.
+3. Open your project. Generate project files and build it. The plugin is enabled by default in the editor's Plugins window under **AI > Tokenizers**.
 
-<div id="prerequisites"></div>
+### Build the native library
 
-### Prerequisites
+The plugin links `Source/ThirdParty/tokenizersLibrary/x64/Release/tokenizers_c.lib`. It is built from a pinned fork, [P1ayer-1/tokenizers-cpp](https://github.com/P1ayer-1/tokenizers-cpp), tag `v0.1.4`. The fork returns error codes instead of aborting and adds truncated batch encoding.
 
-* OS: Windows - 64 bit
-* UE: version 5.0 - 5.3
+You need:
 
-<div id="setup"></div>
+- git
+- Rust (rustup), with the target `x86_64-pc-windows-msvc`
+- Visual Studio 2022 with the MSVC 14.44 toolset (the same toolset UE 5.8 uses)
 
-### Setup
+Run this in PowerShell 5.1 from the plugin folder:
 
-1. In your Unreal Engine project, create a `Plugins` folder if it doesn't already exist.
-2. Navigate to the [Releases page](https://github.com/P1ayer-1/Tokenizers-UE5/releases).
-3. Download the source code for the release you want to use.
-4. Extract the downloaded source code into the `Plugins` directory.
-5. Navigate to `Plugins/Tokenizers-UE5/Source/ThirdParty/TokenizersLibrary/Win64`.
-6. From the same release page, download `tokenizers_c.lib` and place it inside the `Win64` folder.
-7. Delete the placeholder file named `PLACE STATIC LIB HERE` from the `Win64` folder.
+```powershell
+.\Scripts\BuildTokenizersLib.ps1
+```
 
-<p align="right">(<a href="#top">back to top</a>)</p>
-<div id="guides-and-tutorials"></div>
+Parameters:
 
-## Guides and Tutorials
+| Parameter | Default | Meaning |
+|---|---|---|
+| `-WorkDir` | `%TEMP%\tokenizers-cpp-build` | Where the source is cloned and built. Must be outside the plugin folder. |
+| `-MsvcToolset` | `14.44` | MSVC toolset version to build with. |
+| `-Clean` | off | Start from a clean build. |
 
-<div id="youtube-tutorials"></div>
+A cold build takes about 5 minutes. When it finishes, `tokenizers_c.lib` is in place, and `tokenizers_c.buildinfo.json` sits next to it. The buildinfo file records the commit, rustc, toolset, crate version and SHA256.
 
-### YouTube Tutorials
+## Quick start
 
-- [Setup and Basic Usage](https://youtu.be/dvGWUh4SPBY)
-- [Working with Meta's Llama](https://youtu.be/0YI2O5uSuFw)
+### Blueprint
 
-<div id="wiki"></div>
+All nodes are in the **Tokenizer** category.
 
-### Wiki
-- https://github.com/gpt-3d/pytuech/wiki
+1. Call **Construct Object from Class** with class **Tokenizer Wrapper**. Store the result in a variable so it stays alive.
+2. Call **Initialize Tokenizer From File** on it. Pass a path to a `tokenizer.json`. Check the returned Boolean. If it is false, print **Get Last Error**.
+3. Call **Encode** with your text. Set **Add Special Tokens** to true for BERT-style models. You get an array of ints.
+4. Call **Decode** with the ids to get the text back.
 
-<p align="right">(<a href="#top">back to top</a>)</p>
+### C++
 
-<div id="contributing"></div>
+```cpp
+#include "TokenizerWrapper.h"
 
-## Contributing
-Want to contribute to? Awesome! Check out the [contributing guidelines](https://github.com/P1ayer-1/Tokenizers-UE5/blob/main/CONTRIBUTING.md) to get involved. Contributors are encouraged join to the [community Discord server](https://discord.gg/AWWECeRcyX).
+UTokenizerWrapper* Tok = NewObject<UTokenizerWrapper>();
+// Keep Tok alive, for example in a UPROPERTY() member.
 
-<p align="right">(<a href="#top">back to top</a>)</p>
-<div id="license"></div>
+if (!Tok->InitializeTokenizerFromFile(TEXT("tokenizer.json")))
+{
+    UE_LOG(LogTemp, Warning, TEXT("Load failed: %s"), *Tok->GetLastError());
+    return;
+}
 
-## Credits and Licenses
+// Single string, with [CLS] / [SEP] style special tokens.
+TArray<int32> Ids = Tok->Encode(TEXT("Hello world"), true);
 
-This project is licensed under the MIT License, except for specific files noted below. See the `LICENSE` file for more information.
+// Padded batch, truncated to 128 ids per row, padded with id 0.
+FTokenizedBatch Batch;
+TArray<FString> Texts = { TEXT("first text"), TEXT("a second, longer text") };
+if (Tok->EncodeBatch(Texts, Batch, true, 128, 0))
+{
+    // Batch.InputIds and Batch.AttentionMask hold Batch.NumRows * Batch.SeqLen values.
+}
+else
+{
+    UE_LOG(LogTemp, Warning, TEXT("Batch failed: %s"), *Tok->GetLastError());
+}
+```
 
-- **Tokenizers-cpp**:
-    - Source: [Tokenizers-cpp GitHub](https://github.com/mlc-ai/tokenizers-cpp)
-    - License for `tokenizers_c.h`: Apache License 2.0
+The relative path `tokenizer.json` is looked up as described in the API reference below.
 
-This project is based on [MLC-AI's C/C++ implementation](https://github.com/mlc-ai/tokenizers-cpp) of [HuggingFace's Tokenizers library](https://github.com/huggingface/tokenizers).
-<p align="right">(<a href="#top">back to top</a>)</p>
+## API reference
 
-[contributors-shield]: https://img.shields.io/github/contributors/P1ayer-1/Tokenizers-UE5.svg?style=for-the-badge
-[contributors-url]: https://github.com/P1ayer-1/Tokenizers-UE5/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/P1ayer-1/Tokenizers-UE5.svg?style=for-the-badge
-[forks-url]: https://github.com/P1ayer-1/Tokenizers-UE5/network/members
-[stars-shield]: https://img.shields.io/github/stars/P1ayer-1/Tokenizers-UE5.svg?style=for-the-badge
-[stars-url]: https://github.com/P1ayer-1/Tokenizers-UE5/stargazers
-[issues-shield]: https://img.shields.io/github/issues/P1ayer-1/Tokenizers-UE5.svg?style=for-the-badge
-[issues-url]: https://github.com/P1ayer-1/Tokenizers-UE5/issues
-[license-shield]: https://img.shields.io/github/license/P1ayer-1/Tokenizers-UE5.svg?style=for-the-badge
-[license-url]: https://github.com/P1ayer-1/Tokenizers-UE5/blob/master/LICENSE
+Class: `UTokenizerWrapper` (display name "Tokenizer Wrapper"). Header: `Source/Tokenizers/Public/TokenizerWrapper.h`. All nodes are in the Blueprint category "Tokenizer".
+
+| Function | Notes |
+|---|---|
+| `bool InitializeTokenizerFromJson(const FString& JsonBlob)` | Parses a `tokenizer.json` string. |
+| `bool InitializeTokenizerFromFile(const FString& FilePath)` | Loads a file. Tries an absolute path first, then `<Project>/Content/<path>`, then `<Tokenizers plugin>/Content/<path>`. A UTF-8 BOM is skipped. |
+| `bool IsInitialized() const` | True once a tokenizer is loaded. |
+| `TArray<int32> Encode(const FString& Text, bool bAddSpecialTokens = false)` | Returns ids. Empty array on error. |
+| `FString Decode(const TArray<int32>& Ids, bool bSkipSpecialTokens = false)` | Returns text. A negative id returns an empty string and sets the error. |
+| `bool EncodeBatch(const TArray<FString>& Texts, FTokenizedBatch& OutBatch, bool bAddSpecialTokens = false, int32 MaxLength = 0, int32 PadTokenId = 0)` | Encodes many texts in one call. See below. |
+| `FString GetLastError() const` | Message from the latest call on this object. Empty after a success. |
+
+If an initialize call fails, the previous tokenizer stays loaded.
+
+Special tokens are off by default. BERT-style models need `bAddSpecialTokens = true` to get `[CLS]` and `[SEP]`.
+
+### EncodeBatch and FTokenizedBatch
+
+`FTokenizedBatch` has:
+
+- `InputIds`: row-major, `NumRows * SeqLen` ids.
+- `AttentionMask`: same shape. 1 is a real token, 0 is padding.
+- `NumRows`: number of texts.
+- `SeqLen`: length of the longest row after truncation.
+
+`MaxLength` 0 means no truncation. A positive value truncates the way Hugging Face does, and special tokens are kept (for example `[SEP]`). Rows are right-padded with `PadTokenId` to the longest row.
+
+An empty `Texts` array returns true with `NumRows` and `SeqLen` both 0.
+
+On an error (not initialized, negative `MaxLength`, negative `PadTokenId`, library error, or a result too large for `int32`) the call returns false, `OutBatch` is emptied, and `GetLastError` says why.
+
+## Threading
+
+- Calls on one object are serialized by a per-object lock, so you may call it from any thread.
+- Separate objects run in parallel.
+- Keep the object alive (`TStrongObjectPtr` or a `UPROPERTY`) while other threads use it.
+- Calls are synchronous. Do not load a large file with `InitializeTokenizerFromFile` on the game thread in shipping code.
+
+## Errors
+
+- Bad input does not crash. Invalid tokenizer JSON and invalid UTF-8 come back as errors.
+- Failed calls return `false` or an empty result.
+- `GetLastError` holds the message from the latest call on that object, and is empty after a success.
+- Errors are also logged to the `LogTokenizers` category.
+
+## Testing
+
+Automation tests live under `Tokenizers.*`. There are 86:
+
+| Group | Count |
+|---|---|
+| Lib | 6 |
+| Wrapper | 37 |
+| Batch | 20 |
+| Parity | 21 (7 per tokenizer) |
+| Stress | 2 |
+
+Results from a run on 2026-09-30 on UE 5.8:
+
+- Parity: exact match with Python `tokenizers` 0.22.2 on bert-base-uncased (WordPiece), gpt2 (BPE) and t5-small (SentencePiece Unigram). This covers 24 strings (13 non-ASCII), encode with and without special tokens, decode keeping and skipping them, and 4 padded or truncated batches.
+- Stress: 8 threads for 10 s, 0 mismatches.
+
+The Parity and Stress tests need golden files. To make them, run `Tools/fetch_tokenizers.py` and `Tools/make_tokenizer_goldens.py` from the Pipelines-UE tooling. Then set the `TOKENIZERS_GOLDENS_DIR` environment variable to the goldens folder. Without goldens, the Parity and Stress tests fail by design.
+
+Run the tests:
+
+```
+UnrealEditor-Cmd.exe <Project>.uproject -ExecCmds="Automation RunTests Tokenizers; Quit" -unattended -nullrhi
+```
+
+## License
+
+The plugin code is under the MIT License (`LICENSE`). Files with an Apache-2.0 header are under the Apache License 2.0 (`LICENSE-APACHE`). Third-party components and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
+## Credits
+
+- [MLC-AI tokenizers-cpp](https://github.com/mlc-ai/tokenizers-cpp): the C/C++ binding this plugin is based on. The plugin builds its library from a fork, [P1ayer-1/tokenizers-cpp](https://github.com/P1ayer-1/tokenizers-cpp).
+- [Hugging Face tokenizers](https://github.com/huggingface/tokenizers): the tokenizer library that does the work.
+
+Contributing: see [CONTRIBUTING.md](CONTRIBUTING.md). Issues: https://github.com/NextGen-GameDev/Tokenizers-UE/issues
