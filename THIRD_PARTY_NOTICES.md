@@ -1,6 +1,6 @@
 # Third-party notices
 
-`tokenizers_c.lib` is built from the fork https://github.com/P1ayer-1/tokenizers-cpp (tag `v0.1.4`) and links the components below. The plugin also ships one tokenizer file.
+`tokenizers_c.lib` is built from the fork https://github.com/P1ayer-1/tokenizers-cpp (tag `v0.1.5`) and links the components below. The plugin also ships one tokenizer file.
 
 The full text of the Apache License 2.0 is in `LICENSE-APACHE` in this folder. It applies to every component below that lists Apache-2.0.
 
