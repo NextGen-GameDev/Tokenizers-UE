@@ -1,11 +1,12 @@
 // WP3.8b tests: a tokenizer.json's own `padding` block must not leak into Encode/EncodeBatch (contract C24 + C6).
 // Expected values come from Python `tokenizers` 0.22.2 with no_padding() (see docs/briefs/WP3.8b.md), not from the code under test.
-// MiniLM tokenizer: <ProjectDir>/../.pipelines-dev/models/reference/all-MiniLM-L6-v2/tokenizer.json
+// MiniLM tokenizer: $TOKENIZERS_DEV_DIR/models/reference/... or <ProjectDir>/../.pipelines-dev/models/reference/all-MiniLM-L6-v2/tokenizer.json
 // (padding Fixed 128, truncation 128); fetch with Tools/fetch_reference_models.py.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/Paths.h"
+#include "HAL/PlatformMisc.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/StrongObjectPtr.h"
@@ -21,6 +22,11 @@ namespace TokenizerPaddingSpecPrivate
 
 	static FString MiniLMPath()
 	{
+		const FString Env = FPlatformMisc::GetEnvironmentVariable(TEXT("TOKENIZERS_DEV_DIR"));
+		if (!Env.IsEmpty())
+		{
+			return FPaths::ConvertRelativePathToFull(Env / TEXT("models/reference/all-MiniLM-L6-v2/tokenizer.json"));
+		}
 		return FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() / TEXT("../.pipelines-dev/models/reference/all-MiniLM-L6-v2/tokenizer.json"));
 	}
 
