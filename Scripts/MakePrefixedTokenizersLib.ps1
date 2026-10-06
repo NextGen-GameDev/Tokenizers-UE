@@ -15,12 +15,19 @@
       3. collects every defined external symbol and weak external of the objects
          (dumpbin /SYMBOLS), minus the exclusions, into a rename map "<old> <prefix><old>",
       4. renames them in each object (rust-objcopy --redefine-syms),
+      4b. blanks every /EXPORT: linker directive in the objects' .drectve sections (the
+         oniguruma objects are compiled dllexport; .drectve is plain text that --redefine-syms
+         does not touch, so a DLL linking the renamed lib would try to export the old names:
+         LNK2001/LNK1120). Each /EXPORT:... token is overwritten with spaces of the same length
+         (rust-objcopy --dump-section / --update-section, same size and flags), so /DEFAULTLIB
+         and every other directive stay byte-identical,
       5. rebuilds the archive: the renamed objects in the original order plus the untouched
          import members (lib /Brepro, run inside the object folder so member names carry no
          absolute paths and the SHA does not depend on the work folder),
       6. verifies the result (dumpbin /linkermember:1) and fails on any miss:
          all 13 C API names present as <prefix><name>, no unprefixed C API name, no public name
          starting with _R, every public name prefixed, excluded or from an import member,
+         no /EXPORT: directive left (dumpbin /DIRECTIVES), every other directive unchanged,
       7. generates <prefix>tokenizers_c.h from the plain header (functions, types, status-code
          macros and include guard renamed, so both headers can be included in one TU),
       8. writes <prefix>tokenizers_c.buildinfo.json and <prefix>tokenizers_c.renames.txt.
@@ -70,7 +77,7 @@ param(
     [string]$MsvcToolset = '14.44'
 )
 
-$ScriptVersion = '1.0.0'
+$ScriptVersion = '1.1.0'
 
 # Every function declared in include/tokenizers_c.h at the pin (v0.1.5).
 $CApiNames = @(
@@ -204,6 +211,16 @@ function Get-PublicSymbols([string]$Lib)
     if ($Names.Count -ne $Declared) { Fail "dumpbin /linkermember:1 of ${Lib}: parsed $($Names.Count) names, header says $Declared" }
     return ,$Names
 }
+
+# Linker directive lines of every member (dumpbin /DIRECTIVES), in member order.
+function Get-Directives([string]$Lib)
+{
+    $Lines = Invoke-Native "dumpbin /DIRECTIVES $Lib" $DumpBin @('/NOLOGO', '/DIRECTIVES', $Lib)
+    return ,@($Lines | Where-Object { $_ -match '^\s+[/-][A-Za-z]' } | ForEach-Object { $_.Trim() })
+}
+
+# One /EXPORT: (or -export:) directive token, optionally with quoted parts.
+$ExportRegex = New-Object regex '(?i)(?<=^|\s)[/-]EXPORT:("[^"]*"|\S)*'
 
 function Test-Excluded([string]$Name)
 {
@@ -369,6 +386,45 @@ foreach ($B in $BareNames)
     Invoke-Native "rust-objcopy $B" $ObjCopy @("--redefine-syms=$MapPath", (Join-Path $ObjDir $B)) | Out-Null
 }
 
+# ---- 6b. Drop /EXPORT: directives -------------------------------------------------------
+Step 'Blanking /EXPORT: linker directives (.drectve, rust-objcopy --update-section)'
+$Latin1 = [Text.Encoding]::GetEncoding(28591)
+$ExportObjs = New-Object 'System.Collections.Generic.List[string]'
+Push-Location -LiteralPath $ObjDir
+try
+{
+    for ($I = 0; $I -lt $BareNames.Count; $I += 64)
+    {
+        $Chunk = @($BareNames[$I..([Math]::Min($I + 63, $BareNames.Count - 1))])
+        $Cur = $null
+        foreach ($L in (Invoke-Native 'dumpbin /DIRECTIVES' $DumpBin (@('/NOLOGO', '/DIRECTIVES') + $Chunk)))
+        {
+            $M = [regex]::Match($L, '^Dump of file (.+)$')
+            if ($M.Success) { $Cur = $M.Groups[1].Value.Trim(); continue }
+            if ($Cur -and $L -match '^\s+[/-]EXPORT:' -and -not $ExportObjs.Contains($Cur)) { $ExportObjs.Add($Cur) }
+        }
+    }
+}
+finally { Pop-Location }
+$DroppedExports = 0
+$DrIn = Join-Path $WorkDir 'drectve.in'
+$DrOut = Join-Path $WorkDir 'drectve.out'
+foreach ($B in $ExportObjs)
+{
+    $ObjPath = Join-Path $ObjDir ([IO.Path]::GetFileName($B))
+    if (-not (Test-Path -LiteralPath $ObjPath)) { Fail "dumpbin /DIRECTIVES named an unknown object '$B'" }
+    Invoke-Native "rust-objcopy --dump-section .drectve $B" $ObjCopy @("--dump-section=.drectve=$DrIn", $ObjPath) | Out-Null
+    $Text = $Latin1.GetString([IO.File]::ReadAllBytes($DrIn))
+    $Found = $ExportRegex.Matches($Text).Count
+    if ($Found -eq 0) { Fail "$B has /EXPORT: directives, but its .drectve section has none" }
+    $New = $ExportRegex.Replace($Text, { param($M) ' ' * $M.Length })
+    if ($New.Length -ne $Text.Length) { Fail "blanking changed the .drectve size of $B" }
+    [IO.File]::WriteAllBytes($DrOut, $Latin1.GetBytes($New))
+    Invoke-Native "rust-objcopy --update-section .drectve $B" $ObjCopy @("--update-section=.drectve=$DrOut", $ObjPath) | Out-Null
+    $DroppedExports += $Found
+}
+Write-Host "  blanked $DroppedExports /EXPORT: directives in $($ExportObjs.Count) objects"
+
 # ---- 7. Rebuild the archive -------------------------------------------------------------
 Step 'Rebuilding the archive (lib /Brepro)'
 $RemoveRsp = Join-Path $WorkDir 'remove.rsp'
@@ -407,12 +463,24 @@ foreach ($N in $OutSet)
     elseif (Test-Excluded $N) { $Excl++ }
     else { $Problems.Add("public name neither prefixed, excluded nor from an import member: $N") }
 }
+$InDirectives = Get-Directives $InputLib
+$OutDirectives = Get-Directives $OutLibStage
+$OutExports = @($OutDirectives | Where-Object { $_ -match '^[/-]EXPORT:' })
+foreach ($E in ($OutExports | Select-Object -First 10)) { $Problems.Add("linker directive left: $E") }
+$InKept = @($InDirectives | Where-Object { $_ -notmatch '^[/-]EXPORT:' })
+$InExportCount = $InDirectives.Count - $InKept.Count
+if ($InExportCount -ne $DroppedExports) { $Problems.Add("input has $InExportCount /EXPORT: directives, $DroppedExports were blanked") }
+if (($InKept -join "`n") -cne ($OutDirectives -join "`n"))
+{
+    $Problems.Add("the other linker directives differ: input $($InKept.Count), output $($OutDirectives.Count)")
+}
 if ($Problems.Count -gt 0)
 {
     foreach ($P in ($Problems | Select-Object -First 30)) { Write-Host "    $P" }
     Fail "verification found $($Problems.Count) problem(s)"
 }
 Write-Host "  $($CApiNames.Count)/$($CApiNames.Count) C API names prefixed, none unprefixed, no public _R names"
+Write-Host "  no /EXPORT: directive left; $($OutDirectives.Count) other directives unchanged"
 Write-Host "  public names: $($OutSet.Count) unique = $Prefixed prefixed + $Excl excluded + $Imp import-member"
 
 # ---- 9. Header --------------------------------------------------------------------------
@@ -464,6 +532,7 @@ $Info = [ordered]@{
     lib_sha256           = $LibSha
     renamed_symbol_count = $Defined.Count
     rename_map_sha256    = $MapSha
+    dropped_export_directives = $DroppedExports
     exclusions           = $Exclusions
     rust_objcopy_version = $ObjCopyVersion
     lib_exe_version      = $LibExeVersion
@@ -497,6 +566,7 @@ Write-Host "  lib               : $(Join-Path $OutDir $OutLibName)"
 Write-Host "  lib sha256        : $LibSha"
 Write-Host "  renamed symbols   : $($Defined.Count)"
 Write-Host "  rename map sha256 : $MapSha"
+Write-Host "  /EXPORT: dropped  : $DroppedExports"
 Write-Host "  header            : $(Join-Path $OutDir $OutHeaderName)"
 Write-Host "  build info        : $InfoOut"
 Write-Host 'MakePrefixedTokenizersLib OK'
