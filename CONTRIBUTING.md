@@ -47,7 +47,7 @@ One-line messages are fine for small changes, but bigger changes should look lik
 
 ### Building the native library
 
-The plugin links `Source/ThirdParty/tokenizersLibrary/x64/Release/tokenizers_c.lib`, which is not in git. Build it with `Scripts/BuildTokenizersLib.ps1` (PowerShell 5.1). It clones [P1ayer-1/tokenizers-cpp](https://github.com/P1ayer-1/tokenizers-cpp) at tag `v0.1.4` and builds it. You need git, Rust (target `x86_64-pc-windows-msvc`) and Visual Studio 2022 with the MSVC 14.44 toolset. Parameters: `-WorkDir` (must be outside the plugin folder), `-MsvcToolset`, `-Clean`. See the README for details.
+The plugin links a static library that is not in git. On Win64 it is `Source/ThirdParty/tokenizersLibrary/x64/Release/tokenizers_c.lib`, built with `Scripts/BuildTokenizersLib.ps1` (PowerShell 5.1). On Linux and Mac it is `libtokenizers_c.a` under `Source/ThirdParty/tokenizersLibrary/Linux/<triple>/` or `Mac/`, built with `Scripts/BuildTokenizersLib.sh`. Both scripts clone [P1ayer-1/tokenizers-cpp](https://github.com/P1ayer-1/tokenizers-cpp) at tag `v0.1.5` and build it; keep their pins in sync. On Windows you need git, Rust (target `x86_64-pc-windows-msvc`) and Visual Studio 2022 with the MSVC 14.44 toolset. Parameters: `-WorkDir` (must be outside the plugin folder), `-MsvcToolset`, `-Clean`. On Linux and Mac you need git, bash, Rust and a C compiler. See the README for details.
 
 ### Coding conventions
 

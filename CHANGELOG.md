@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Linux, LinuxArm64 and Mac support. The module is allowed on these platforms and links `libtokenizers_c.a` from `Source/ThirdParty/tokenizersLibrary/Linux/<triple>/` or `Mac/` (universal arm64 + x86_64).
+- `Scripts/BuildTokenizersLib.sh`: builds and installs the library on Linux and Mac, with the same pin and checks as the Windows script.
+
 ## 0.3.0 (2026-10-06)
 
 ### Added
