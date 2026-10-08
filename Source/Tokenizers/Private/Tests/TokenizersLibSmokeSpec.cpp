@@ -87,6 +87,7 @@ void FTokenizersLibSmokeSpec::Define()
 		It("UninitializedWrapperGivesEmptyArray", [this]()
 		{
 			// A fresh wrapper with a null handle must not dereference it.
+			AddExpectedMessagePlain(TEXT("Encode: tokenizer not initialized"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 			CheckIds(TEXT("Uninitialized"), {}, Wrapper->Encode(TEXT("Hello")));
 		});
 	});

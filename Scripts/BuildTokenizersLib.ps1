@@ -28,18 +28,30 @@
 
 .PARAMETER Clean
     Delete the clone (and with it the cargo target folder) before building.
+
+.PARAMETER SymbolPrefix
+    Optional. After the normal install, also make a renamed copy of the installed lib with
+    MakePrefixedTokenizersLib.ps1 (every symbol prefixed, e.g. mpt_), for a plugin that links
+    its own copy next to this one. Must match ^[A-Za-z_][A-Za-z0-9_]*_$. Default '' = no copy;
+    the plugin's lib, header and build info are the same either way.
+
+.PARAMETER VariantOutDir
+    Where the renamed copy goes (<prefix>tokenizers_c.lib/.h/.buildinfo.json/.renames.txt).
+    Required with -SymbolPrefix; must be outside the plugin folder and the WorkDir.
 #>
 [CmdletBinding()]
 param(
     [string]$WorkDir = (Join-Path $env:TEMP 'tokenizers-cpp-build'),
     [string]$MsvcToolset = '14.44',
-    [switch]$Clean
+    [switch]$Clean,
+    [string]$SymbolPrefix = '',
+    [string]$VariantOutDir = ''
 )
 
 # ---- Pin --------------------------------------------------------------------------------
 $RepoUrl    = 'https://github.com/P1ayer-1/tokenizers-cpp'
-$RepoTag    = 'v0.1.4'
-$RepoCommit = '44bd5cabadf32681acee3d7ff8861712f498ef83'
+$RepoTag    = 'v0.1.5'
+$RepoCommit = 'b1dab5c2e04dc7462f5a38e9ef2c93c2f8218495'
 
 $CargoTarget = 'x86_64-pc-windows-msvc'
 $Crt         = 'MD'
@@ -50,6 +62,7 @@ $ExpectedSymbols = @(
     'byte_level_bpe_tokenizers_new_from_str',
     'tokenizers_encode',
     'tokenizers_encode_batch',
+    'tokenizers_encode_batch_truncated',
     'tokenizers_free_encode_results',
     'tokenizers_decode',
     'tokenizers_get_decode_str',
@@ -140,6 +153,19 @@ if (Test-PathUnder $WorkDir $PluginRoot)
     Fail "WorkDir '$WorkDir' is inside the plugin folder '$PluginRoot'; choose a folder outside the repo"
 }
 $CloneDir = Join-Path $WorkDir 'tokenizers-cpp'
+# Optional renamed copy: validate up front so a bad argument fails before the 5-minute build.
+$MakeVariant = -not [string]::IsNullOrEmpty($SymbolPrefix)
+if ($MakeVariant)
+{
+    if ($SymbolPrefix -cnotmatch '^[A-Za-z_][A-Za-z0-9_]*_$') { Fail "bad -SymbolPrefix '$SymbolPrefix': must match ^[A-Za-z_][A-Za-z0-9_]*_$ (e.g. mpt_)" }
+    if ([string]::IsNullOrWhiteSpace($VariantOutDir)) { Fail '-VariantOutDir is required with -SymbolPrefix' }
+    $VariantOutDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($VariantOutDir)
+    if (Test-PathUnder $VariantOutDir $PluginRoot) { Fail "-VariantOutDir '$VariantOutDir' is inside the plugin folder '$PluginRoot'" }
+    if (Test-PathUnder $VariantOutDir $WorkDir) { Fail "-VariantOutDir '$VariantOutDir' is inside the WorkDir '$WorkDir'" }
+    $MakePrefixedScript = Join-Path $PSScriptRoot 'MakePrefixedTokenizersLib.ps1'
+    if (-not (Test-Path -LiteralPath $MakePrefixedScript)) { Fail "MakePrefixedTokenizersLib.ps1 not found at $MakePrefixedScript" }
+}
+elseif (-not [string]::IsNullOrWhiteSpace($VariantOutDir)) { Fail '-VariantOutDir needs -SymbolPrefix' }
 $RustDir = Join-Path $CloneDir 'rust'
 
 Write-Host "BuildTokenizersLib"
@@ -150,6 +176,7 @@ Write-Host "  plugin      : $PluginRoot"
 Write-Host "  work dir    : $WorkDir"
 Write-Host "  msvc toolset: $MsvcToolset"
 Write-Host "  clean       : $([bool]$Clean)"
+if ($MakeVariant) { Write-Host "  variant     : prefix $SymbolPrefix -> $VariantOutDir" }
 
 # ---- 1. Tools ---------------------------------------------------------------------------
 Step 'Checking tools'
@@ -371,5 +398,14 @@ Write-Host "  lib size         : $LibSize bytes"
 Write-Host "  lib sha256       : $LibHash"
 Write-Host "  header           : $HeaderOut"
 Write-Host "  build info       : $BuildInfoOut"
+
+# ---- 9. Optional renamed copy -----------------------------------------------------------
+if ($MakeVariant)
+{
+    Step "Making the renamed copy (prefix $SymbolPrefix) from the installed lib"
+    $PsExe = Join-Path $PSHOME 'powershell.exe'
+    Invoke-Native 'MakePrefixedTokenizersLib.ps1' $PsExe @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $MakePrefixedScript,
+        '-InputLib', $LibOut, '-InputHeader', $HeaderOut, '-SymbolPrefix', $SymbolPrefix, '-OutDir', $VariantOutDir, '-MsvcToolset', $MsvcToolset) | Out-Null
+}
 Write-Host 'BuildTokenizersLib OK'
 exit 0

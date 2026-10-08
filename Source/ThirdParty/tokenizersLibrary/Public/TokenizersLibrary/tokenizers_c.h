@@ -17,6 +17,14 @@
  *  - The string returned by tokenizers_get_last_error is owned by the library (thread-local).
  *  - A handle must be freed with tokenizers_free.
  * A handle is not thread-safe; callers serialize calls per handle.
+ *
+ * Padding (v0.1.5+): tokenizers_encode, tokenizers_encode_batch and
+ * tokenizers_encode_batch_truncated NEVER pad. A `padding` block in tokenizer.json (e.g.
+ * {"strategy": {"Fixed": 128}}) is ignored by these calls, as with Python Tokenizer.no_padding():
+ * the result holds only real token ids, so pads can't be mistaken for tokens. The handle's
+ * padding config is cleared for the duration of the call and restored before it returns, on
+ * success, error and caught panic alike; callers never observe it. Callers that need fixed-length
+ * rows pad themselves (and build the attention mask from the returned lengths).
  */
 #ifndef TOKENIZERS_C_H_
 #define TOKENIZERS_C_H_
@@ -52,20 +60,26 @@ TokenizerHandle byte_level_bpe_tokenizers_new_from_str(const char* vocab, size_t
                                                        const char* added_tokens,
                                                        size_t added_tokens_len);
 
-/* On failure *result = {NULL, 0}. An empty encoding is {NULL, 0} with TOKENIZERS_OK. */
+/* On failure *result = {NULL, 0}. An empty encoding is {NULL, 0} with TOKENIZERS_OK.
+   Never padded (see Padding above). The truncation from tokenizer.json, if any, applies (as
+   Python Tokenizer.encode does). */
 int tokenizers_encode(TokenizerHandle handle, const char* data, size_t len, int add_special_token,
                       TokenizerEncodeResult* result);
 
 /* A NULL handle is TOKENIZERS_ERR_NULL_ARG, even when num_seqs == 0. With a valid handle,
    num_seqs == 0 is OK and writes nothing (data, len and results may be NULL).
    An empty encoding is {NULL, 0}.
-   On failure every results[i] = {NULL, 0}; nothing is left allocated. */
+   On failure every results[i] = {NULL, 0}; nothing is left allocated.
+   Never padded: rows keep their own lengths (see Padding above). The truncation from
+   tokenizer.json, if any, applies (as Python Tokenizer.encode_batch does). */
 int tokenizers_encode_batch(TokenizerHandle handle, const char** data, size_t* len, size_t num_seqs,
                             int add_special_token, TokenizerEncodeResult* results);
 
 /* Like tokenizers_encode_batch, plus HF truncation of each item to max_length tokens
-   (special tokens included, as HF does). max_length == 0 -> no truncation (identical to
-   tokenizers_encode_batch). Truncation params: tokenizers crate TruncationParams with
+   (special tokens included, as HF does). max_length == 0 -> no extra truncation (identical to
+   tokenizers_encode_batch, including the tokenizer.json truncation). With max_length > 0 these
+   params replace the handle's own truncation for the call. Never padded (see Padding above).
+   Truncation params: tokenizers crate TruncationParams with
    max_length set, strategy LongestFirst, stride 0, direction Right.
    The handle's own truncation/padding config (from tokenizer.json) is restored before
    returning, on success and on failure. Failure rules are the same as tokenizers_encode_batch.

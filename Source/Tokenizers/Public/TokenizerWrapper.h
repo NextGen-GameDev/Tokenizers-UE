@@ -84,6 +84,11 @@ public:
 	bool EncodeBatch(const TArray<FString>& Texts, FTokenizedBatch& OutBatch,
 		bool bAddSpecialTokens = false, int32 MaxLength = 0, int32 PadTokenId = 0);
 
+	/** Vocabulary size including added tokens (tokenizers_get_vocab_size -> Rust get_vocab_size(true)).
+	    -1 when not initialized or on a library error (GetLastError() set, one Warning). Clamped to MAX_int32. */
+	UFUNCTION(BlueprintPure, Category = "Tokenizer")
+	int32 GetVocabSize();
+
 	/** Message from the most recent call on this object: "" if that call succeeded. */
 	UFUNCTION(BlueprintPure, Category = "Tokenizer")
 	FString GetLastError() const;

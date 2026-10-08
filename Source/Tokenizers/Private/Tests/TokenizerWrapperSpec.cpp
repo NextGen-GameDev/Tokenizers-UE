@@ -211,6 +211,7 @@ void FTokenizerWrapperSpec::Define()
 		It("EmptyIdsGivesEmptyStringAndNoError", [this]()
 		{
 			if (!InitA(TEXT("DecodeEmpty"))) { return; }
+			AddExpectedMessagePlain(TEXT("Decode: id -1 at index 0 is negative"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 			// Make the previous call fail so we know the empty decode really reset the error.
 			Wrapper->Decode({-1});
 			CheckString(TEXT("decode [] result"), FString(), Wrapper->Decode(TArray<int32>()));
@@ -241,6 +242,7 @@ void FTokenizerWrapperSpec::Define()
 		It("RejectedWithErrorAndNoCrash", [this]()
 		{
 			if (!InitB(TEXT("NegId"))) { return; }
+			AddExpectedMessagePlain(TEXT("Decode: id -5 at index 1 is negative"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 			CheckString(TEXT("decode [1,-5] result"), FString(), Wrapper->Decode({1, -5}));
 			TestFalse(TEXT("decode [1,-5]: GetLastError() must be non-empty"), Wrapper->GetLastError().IsEmpty());
 		});
@@ -248,6 +250,7 @@ void FTokenizerWrapperSpec::Define()
 		It("NegativeAtFrontAlsoRejected", [this]()
 		{
 			if (!InitB(TEXT("NegIdFront"))) { return; }
+			AddExpectedMessagePlain(TEXT("Decode: id -1 at index 0 is negative"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 			CheckString(TEXT("decode [-1,1] result"), FString(), Wrapper->Decode({-1, 1}));
 			TestFalse(TEXT("decode [-1,1]: GetLastError() must be non-empty"), Wrapper->GetLastError().IsEmpty());
 		});
@@ -263,18 +266,21 @@ void FTokenizerWrapperSpec::Define()
 
 		It("EncodeGivesEmptyArrayAndError", [this]()
 		{
+			AddExpectedMessagePlain(TEXT("Encode: tokenizer not initialized"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 			CheckIds(TEXT("uninitialized encode"), {}, Wrapper->Encode(TEXT("hello")));
 			TestFalse(TEXT("uninitialized encode: GetLastError() must be non-empty"), Wrapper->GetLastError().IsEmpty());
 		});
 
 		It("DecodeGivesEmptyStringAndError", [this]()
 		{
+			AddExpectedMessagePlain(TEXT("Decode: tokenizer not initialized"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 			CheckString(TEXT("uninitialized decode"), FString(), Wrapper->Decode({1, 2}));
 			TestFalse(TEXT("uninitialized decode: GetLastError() must be non-empty"), Wrapper->GetLastError().IsEmpty());
 		});
 
 		It("DecodeEmptyIdsAlsoErrors", [this]()
 		{
+			AddExpectedMessagePlain(TEXT("Decode: tokenizer not initialized"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 			CheckString(TEXT("uninitialized decode []"), FString(), Wrapper->Decode(TArray<int32>()));
 			TestFalse(TEXT("uninitialized decode []: GetLastError() must be non-empty"),
 				Wrapper->GetLastError().IsEmpty());

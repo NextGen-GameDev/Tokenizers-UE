@@ -42,7 +42,7 @@ Built and tested on UE 5.8 (5.8.3). UE 5.6 has not been tested.
 
 ### Build the native library
 
-The plugin links `Source/ThirdParty/tokenizersLibrary/x64/Release/tokenizers_c.lib`. It is built from a pinned fork, [P1ayer-1/tokenizers-cpp](https://github.com/P1ayer-1/tokenizers-cpp), tag `v0.1.4`. The fork returns error codes instead of aborting and adds truncated batch encoding.
+The plugin links `Source/ThirdParty/tokenizersLibrary/x64/Release/tokenizers_c.lib`. It is built from a pinned fork, [P1ayer-1/tokenizers-cpp](https://github.com/P1ayer-1/tokenizers-cpp), tag `v0.1.5`. The fork returns error codes instead of aborting, adds truncated batch encoding and never pads in the encode calls.
 
 You need:
 
@@ -65,6 +65,27 @@ Parameters:
 | `-Clean` | off | Start from a clean build. |
 
 A cold build takes about 5 minutes. When it finishes, `tokenizers_c.lib` is in place, and `tokenizers_c.buildinfo.json` sits next to it. The buildinfo file records the commit, rustc, toolset, crate version and SHA256.
+
+### Building a renamed copy
+
+Another plugin can ship its own copy of the library next to this one, if every symbol in its copy has a prefix. Without the prefix, the two copies collide at link time. `Scripts\MakePrefixedTokenizersLib.ps1` makes such a copy from the installed lib without rebuilding it:
+
+```powershell
+.\Scripts\MakePrefixedTokenizersLib.ps1 -InputLib .\Source\ThirdParty\tokenizersLibrary\x64\Release\tokenizers_c.lib -SymbolPrefix mpt_ -OutDir <dir>
+```
+
+It writes four files to `<dir>`:
+
+- `mpt_tokenizers_c.lib`: every defined symbol is renamed, including the Rust runtime and oniguruma. MSVC constants and inline CRT helpers are not renamed.
+- `mpt_tokenizers_c.h`: the functions are `mpt_tokenizers_*`, the types `MptTokenizerHandle` and `MptTokenizerEncodeResult`, the status codes `MPT_TOKENIZERS_*`. It can be included in the same file as `tokenizers_c.h`.
+- `mpt_tokenizers_c.buildinfo.json`: the prefix, the input and output SHA256, the rename count and the tool versions.
+- `mpt_tokenizers_c.renames.txt`: the rename map.
+
+The script needs `lib.exe` and `dumpbin.exe` from Visual Studio 2022 (MSVC 14.44) and `rust-objcopy.exe` from the rustc sysroot. It takes about a minute. The same input lib and tools always give the same output bytes. It checks the result and fails with a message if a check fails. It only moves files into `<dir>` once all checks pass.
+
+`BuildTokenizersLib.ps1 -SymbolPrefix mpt_ -VariantOutDir <dir>` runs the same step after a build. This plugin's own lib is the same with or without it.
+
+The two copies are separate libraries, each with its own allocator and thread-local state. Pass a handle, encode result or error string from the renamed copy only to `mpt_` functions.
 
 ## Quick start
 

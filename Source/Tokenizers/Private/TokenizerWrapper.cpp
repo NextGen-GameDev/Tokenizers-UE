@@ -402,6 +402,28 @@ bool UTokenizerWrapper::EncodeBatch(const TArray<FString>& Texts, FTokenizedBatc
 	return true;
 }
 
+int32 UTokenizerWrapper::GetVocabSize()
+{
+	FScopeLock Lock(&Mutex);
+	LastError.Reset();
+
+	if (Tokenizer == nullptr)
+	{
+		SetError(TEXT("GetVocabSize: tokenizer not initialized"));
+		return -1;
+	}
+
+	size_t Size = 0;
+	const int32 Status = tokenizers_get_vocab_size(Tokenizer, &Size);
+	if (Status != TOKENIZERS_OK)
+	{
+		SetError(FString::Printf(TEXT("GetVocabSize: tokenizers_get_vocab_size failed (%d): %s"),
+			Status, *UE::Tokenizers::Private::LibraryError()));
+		return -1;
+	}
+	return Size > static_cast<size_t>(MAX_int32) ? MAX_int32 : static_cast<int32>(Size);
+}
+
 FString UTokenizerWrapper::GetLastError() const
 {
 	FScopeLock Lock(&Mutex);
