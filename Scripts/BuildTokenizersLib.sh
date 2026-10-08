@@ -21,7 +21,9 @@
 # target (oniguruma is C) and, on Mac, Xcode command line tools (lipo). Nothing is installed;
 # a missing tool is reported and the script exits non-zero.
 #
-# Linux C compiler: if LINUX_MULTIARCH_ROOT is set (the Unreal Linux cross toolchain), its
+# C compiler: CC_<target> (cc-rs's own variable, e.g. CC_aarch64_unknown_linux_gnu) wins if set;
+# that is also how to cross-compile, e.g. the Mac lib on Linux with zig cc wrappers (testing).
+# Linux: if LINUX_MULTIARCH_ROOT is set (the Unreal Linux cross toolchain), its
 # clang and sysroot are used, so the C objects match the glibc the engine links against.
 # Otherwise CC (or cc) from PATH is used. --ue-toolchain overrides LINUX_MULTIARCH_ROOT.
 
@@ -50,7 +52,7 @@ tokenizers_get_last_error'
 # native-static-libs entries Source/ThirdParty/tokenizersLibrary/TokenizersLibrary.Build.cs
 # links (or the engine always links). Anything else fails the build: update Build.cs first.
 ALLOWED_NATIVE_LINUX='-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc'
-ALLOWED_NATIVE_MAC='-lSystem -lc -lm -liconv -lresolv -framework CoreFoundation -framework Security'
+ALLOWED_NATIVE_MAC='-lSystem -lc -lm -liconv'
 
 DEFAULT_MACOS_MIN='11.0'
 
@@ -167,7 +169,6 @@ case "$TARGET" in
         ALLOWED_NATIVE="$ALLOWED_NATIVE_LINUX"
         ;;
     mac)
-        [ "$HOST_OS" = 'Darwin' ] || fail "--target mac must be built on macOS (needs the Apple SDK and lipo)"
         RUST_TARGETS='aarch64-apple-darwin x86_64-apple-darwin'
         PLATFORM_SUBDIR='Mac'
         UE_TOOLCHAIN_ARCH=''
@@ -177,7 +178,6 @@ case "$TARGET" in
         fail "bad --target '$TARGET': must be linux-x64, linux-arm64 or mac"
         ;;
 esac
-case "$TARGET" in linux-*) [ "$HOST_OS" = 'Linux' ] || [ -n "$UE_TOOLCHAIN" ] || fail "--target $TARGET off Linux needs --ue-toolchain (or LINUX_MULTIARCH_ROOT)" ;; esac
 
 # ---- Paths ------------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -229,11 +229,17 @@ for T in $RUST_TARGETS; do
     echo "  rust target $T installed"
 done
 
-if [ "$TARGET" = 'mac' ]; then
+if [ "$TARGET" = 'mac' ] && [ "$HOST_OS" = 'Darwin' ]; then
     need_tool lipo
     need_tool nm
     need_tool xcrun
     NM='nm'
+    LIPO='lipo'
+elif [ "$TARGET" = 'mac' ]; then
+    # Cross-compiling (see --help): LLVM's tools read Mach-O.
+    need_tool llvm-nm
+    NM='llvm-nm'
+    if command -v llvm-lipo >/dev/null 2>&1; then LIPO='llvm-lipo'; else need_tool lipo; LIPO='lipo'; fi
 else
     if command -v llvm-nm >/dev/null 2>&1; then NM='llvm-nm'; else need_tool nm; NM='nm'; fi
 fi
@@ -275,7 +281,27 @@ echo "  tokenizers crate (Cargo.lock) = $TOKENIZERS_CRATE"
 # ---- 4. C toolchain ---------------------------------------------------------------------
 step 'Setting up the C toolchain'
 C_TOOLCHAIN=''
-if [ "$TARGET" = 'mac' ]; then
+# A compiler set explicitly per target (cc-rs's CC_<target>, e.g. a zig cc wrapper) wins.
+EXPLICIT_CC=''
+for T in $RUST_TARGETS; do
+    V="CC_$(printf '%s' "$T" | tr '-' '_')"
+    if [ -n "${!V:-}" ]; then
+        EXPLICIT_CC="$EXPLICIT_CC${EXPLICIT_CC:+; }$V=${!V} ($("${!V}" --version 2>&1 | head -n 1))"
+    fi
+done
+if [ -n "$EXPLICIT_CC" ]; then
+    if [ "$TARGET" = 'mac' ]; then
+        for T in $RUST_TARGETS; do
+            V="CC_$(printf '%s' "$T" | tr '-' '_')"
+            [ -n "${!V:-}" ] || fail "$V must be set too when cross-compiling for Mac"
+        done
+        export MACOSX_DEPLOYMENT_TARGET="$MACOS_MIN"
+        EXPLICIT_CC="$EXPLICIT_CC; MACOSX_DEPLOYMENT_TARGET=$MACOS_MIN"
+    fi
+    C_TOOLCHAIN="$EXPLICIT_CC"
+    echo '  Using the C compiler(s) set in CC_<target>.'
+elif [ "$TARGET" = 'mac' ]; then
+    [ "$HOST_OS" = 'Darwin' ] || fail '--target mac off macOS needs CC_aarch64_apple_darwin and CC_x86_64_apple_darwin (e.g. zig cc wrappers)'
     export MACOSX_DEPLOYMENT_TARGET="$MACOS_MIN"
     SDK_PATH="$(xcrun --sdk macosx --show-sdk-path)" || fail 'xcrun could not find the macOS SDK (install the Xcode command line tools)'
     SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
@@ -297,7 +323,7 @@ elif [ -n "$UE_TOOLCHAIN" ]; then
 else
     CC_BIN="${CC:-cc}"
     need_tool "$CC_BIN"
-    if [ "$TARGET" = 'linux-arm64' ] && [ "$HOST_ARCH" != 'aarch64' ] && [ "$HOST_ARCH" != 'arm64' ] && [ -z "${CC_aarch64_unknown_linux_gnu:-}" ]; then
+    if [ "$TARGET" = 'linux-arm64' ] && [ "$HOST_ARCH" != 'aarch64' ] && [ "$HOST_ARCH" != 'arm64' ]; then
         fail 'cross-building linux-arm64 needs --ue-toolchain (or CC_aarch64_unknown_linux_gnu)'
     fi
     C_TOOLCHAIN="$("$CC_BIN" --version | head -n 1); host sysroot"
@@ -346,11 +372,14 @@ for T in $RUST_TARGETS; do
 
     # ---- 6. Symbols (per architecture) --------------------------------------------------
     step "Checking defined C API symbols for $T ($NM)"
+    # nm may exit non-zero on members it cannot fully read (e.g. an LLVM older than rustc's
+    # reading the bitcode in Rust's Apple std) yet still list the rest; a symbol it misses
+    # fails the check below, so its exit code is not used.
     if [ "$TARGET" = 'mac' ]; then
         # Mach-O prefixes C symbols with '_'.
-        DEFINED="$("$NM" -gU "$BUILT" 2>/dev/null | awk 'NF >= 3 { s = $NF; sub(/^_/, "", s); print s }')"
+        DEFINED="$({ "$NM" -gU "$BUILT" 2>/dev/null || true; } | awk 'NF >= 3 { s = $NF; sub(/^_/, "", s); print s }')"
     else
-        DEFINED="$("$NM" -g --defined-only "$BUILT" 2>/dev/null | awk 'NF >= 3 { print $NF }')"
+        DEFINED="$({ "$NM" -g --defined-only "$BUILT" 2>/dev/null || true; } | awk 'NF >= 3 { print $NF }')"
     fi
     MISSING=''
     for S in $EXPECTED_SYMBOLS; do
@@ -362,7 +391,7 @@ for T in $RUST_TARGETS; do
     if [ "$TARGET" != 'mac' ]; then
         # glibc 2.38+ headers redirect strtol & co. to __isoc23_* in the C objects; those symbols
         # do not exist in the older glibc the engine links against (UE: 2.17).
-        ISOC23="$("$NM" -u "$BUILT" 2>/dev/null | awk '$NF ~ /^__isoc23_/ { print $NF }' | sort -u | tr '\n' ' ')"
+        ISOC23="$({ "$NM" -u "$BUILT" 2>/dev/null || true; } | awk '$NF ~ /^__isoc23_/ { print $NF }' | sort -u | tr '\n' ' ')"
         [ -z "$ISOC23" ] || fail "the C objects need glibc 2.38+ (${ISOC23% }); build with --ue-toolchain (or LINUX_MULTIARCH_ROOT)"
         echo '  no glibc 2.38+ only symbols (__isoc23_*)'
     fi
@@ -385,8 +414,8 @@ cp -f -- "$HEADER_SRC" "$HEADER_OUT"
 TMP_LIB="$LIB_OUT.tmp.$$"
 if [ "$TARGET" = 'mac' ]; then
     # shellcheck disable=SC2086
-    lipo -create $BUILT_LIBS -output "$TMP_LIB" || fail 'lipo -create failed'
-    ARCHS="$(lipo -archs "$TMP_LIB")"
+    "$LIPO" -create $BUILT_LIBS -output "$TMP_LIB" || fail 'lipo -create failed'
+    ARCHS="$("$LIPO" -archs "$TMP_LIB")"
     case " $ARCHS " in *" arm64 "*) ;; *) rm -f "$TMP_LIB"; fail "universal lib lacks arm64 (has: $ARCHS)" ;; esac
     case " $ARCHS " in *" x86_64 "*) ;; *) rm -f "$TMP_LIB"; fail "universal lib lacks x86_64 (has: $ARCHS)" ;; esac
     echo "  universal lib archs: $ARCHS"

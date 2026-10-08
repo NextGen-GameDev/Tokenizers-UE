@@ -6,6 +6,8 @@
 
 - Linux, LinuxArm64 and Mac support. The module is allowed on these platforms and links `libtokenizers_c.a` from `Source/ThirdParty/tokenizersLibrary/Linux/<triple>/` or `Mac/` (universal arm64 + x86_64).
 - `Scripts/BuildTokenizersLib.sh`: builds and installs the library on Linux and Mac, with the same pin and checks as the Windows script.
+- `Scripts/TestTokenizersLib.sh` and `Tests/Native/`: an engine-free smoke test of the Linux/Mac library, linked the way Unreal links the module.
+- GitHub Actions workflow `Native libs (Linux, Mac)`: builds and tests the library on Linux x64, Linux arm64, Mac arm64 and Mac x86_64.
 
 ## 0.3.0 (2026-10-06)
 

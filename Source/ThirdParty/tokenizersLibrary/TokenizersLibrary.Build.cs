@@ -32,10 +32,9 @@ public class TokenizersLibrary : ModuleRules
 			// Built by Scripts/BuildTokenizersLib.sh --target mac: one universal lib (arm64 + x86_64).
 			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "Mac", "libtokenizers_c.a"));
 
-			// From native-static-libs in Mac/tokenizers_c.buildinfo.json (libSystem, libc and libm are always linked;
-			// the script fails on any entry not listed here).
-			PublicSystemLibraries.AddRange(new string[] { "iconv", "resolv" });
-			PublicFrameworks.AddRange(new string[] { "CoreFoundation", "Security" });
+			// From native-static-libs in Mac/tokenizers_c.buildinfo.json: -liconv -lSystem -lc -lm. libSystem (which
+			// holds libc and libm) is always linked; the script fails on any entry not listed here.
+			PublicSystemLibraries.Add("iconv");
 		}
 	}
 }

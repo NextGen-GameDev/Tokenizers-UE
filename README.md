@@ -20,7 +20,7 @@ You can:
 
 The plugin never crashes on bad input. Calls return `false` or an empty result, and `GetLastError` tells you why.
 
-Platforms: Win64, Linux, LinuxArm64 and Mac (Apple silicon and Intel). Each needs its own native library build (see below). The automation tests have been run on Win64 only.
+Platforms: Win64, Linux, LinuxArm64 and Mac (Apple silicon and Intel). Each needs its own native library build (see below). The automation tests have been run on Win64 only. On Linux and Mac, the native library is tested without the engine (see [Linux and Mac](#linux-and-mac)).
 
 ## Install
 
@@ -89,7 +89,7 @@ Run this from the plugin folder:
 ./Scripts/BuildTokenizersLib.sh
 ```
 
-With no `--target`, it builds for the machine it runs on. The Mac library must be built on a Mac.
+With no `--target`, it builds for the machine it runs on. Build the Mac library on a Mac, or cross-compile it (below).
 
 Parameters:
 
@@ -104,6 +104,18 @@ Parameters:
 The script checks the pinned commit, builds with `cargo --locked`, checks that all 13 C API functions are in the library, and checks that the library needs no system library the plugin does not link. On Linux it also fails if the C code needs glibc 2.38 or newer. `tokenizers_c.buildinfo.json` is written next to the library.
 
 Without the Unreal toolchain, the host compiler is used. That works on current distributions; the script tells you if it does not.
+
+To use another C compiler, set cc-rs's own variable for the Rust target, for example `CC_aarch64_unknown_linux_gnu`. This also lets you cross-compile, for example the Mac library on Linux with `zig cc` (set `CC_aarch64_apple_darwin` and `CC_x86_64_apple_darwin`; it then needs `llvm-nm` and a `lipo`).
+
+Then test the library without the engine:
+
+```bash
+./Scripts/TestTokenizersLib.sh
+```
+
+It links `Tests/Native/TokenizersLibSmoke.cpp` into a shared library, the way Unreal links the Tokenizers module. It allows no undefined symbols and uses exactly the system libraries `TokenizersLibrary.Build.cs` lists. Then it runs 11 checks on `Content/tokenizer.json`: encode, decode, non-ASCII round trip, a truncated batch, bad JSON, invalid UTF-8 and 4 threads. On Mac, `--arch arm64` or `--arch x86_64` picks the slice to test. `CXX`, `LDFLAGS` and `RUNNER` (for example `qemu-aarch64-static -L /usr/aarch64-linux-gnu`) set the compiler, extra link flags and an emulator. `--link-only` only links.
+
+The [Native libs workflow](.github/workflows/native-libs.yml) runs both scripts on GitHub Actions for Linux x64, Linux arm64, Mac arm64 and Mac x86_64. On Linux it also links against glibc 2.17 with libc++, as the Unreal toolchain does. Download the built libraries from the run's artifacts.
 
 ### Building a renamed copy
 
