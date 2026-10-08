@@ -73,5 +73,7 @@ Plugins/*/Intermediate/*
 # Cache files for the editor to use
 DerivedDataCache/*
 
-# Local tokenizers_c.lib build provenance (written by Scripts/BuildTokenizersLib.ps1)
+# Local tokenizers_c build provenance (written by Scripts/BuildTokenizersLib.ps1 / .sh)
 Source/ThirdParty/tokenizersLibrary/x64/Release/tokenizers_c.buildinfo.json
+Source/ThirdParty/tokenizersLibrary/Linux/*/tokenizers_c.buildinfo.json
+Source/ThirdParty/tokenizersLibrary/Mac/tokenizers_c.buildinfo.json

@@ -20,7 +20,7 @@ You can:
 
 The plugin never crashes on bad input. Calls return `false` or an empty result, and `GetLastError` tells you why.
 
-Platform: Win64 only.
+Platforms: Win64, Linux, LinuxArm64 and Mac (Apple silicon and Intel). Each needs its own native library build (see below). The automation tests have been run on Win64 only. On Linux and Mac, the native library is tested without the engine (see [Linux and Mac](#linux-and-mac)).
 
 ## Install
 
@@ -42,7 +42,16 @@ Built and tested on UE 5.8 (5.8.3). UE 5.6 has not been tested.
 
 ### Build the native library
 
-The plugin links `Source/ThirdParty/tokenizersLibrary/x64/Release/tokenizers_c.lib`. It is built from a pinned fork, [P1ayer-1/tokenizers-cpp](https://github.com/P1ayer-1/tokenizers-cpp), tag `v0.1.5`. The fork returns error codes instead of aborting, adds truncated batch encoding and never pads in the encode calls.
+The library is built from a pinned fork, [P1ayer-1/tokenizers-cpp](https://github.com/P1ayer-1/tokenizers-cpp), tag `v0.1.5`. The fork returns error codes instead of aborting, adds truncated batch encoding and never pads in the encode calls. Build it on each platform you ship. The plugin links:
+
+| Platform | Library | Build with |
+|---|---|---|
+| Win64 | `Source/ThirdParty/tokenizersLibrary/x64/Release/tokenizers_c.lib` | `Scripts\BuildTokenizersLib.ps1` |
+| Linux | `Source/ThirdParty/tokenizersLibrary/Linux/x86_64-unknown-linux-gnu/libtokenizers_c.a` | `Scripts/BuildTokenizersLib.sh --target linux-x64` |
+| LinuxArm64 | `Source/ThirdParty/tokenizersLibrary/Linux/aarch64-unknown-linux-gnu/libtokenizers_c.a` | `Scripts/BuildTokenizersLib.sh --target linux-arm64` |
+| Mac | `Source/ThirdParty/tokenizersLibrary/Mac/libtokenizers_c.a` (universal: arm64 + x86_64) | `Scripts/BuildTokenizersLib.sh --target mac` |
+
+#### Windows
 
 You need:
 
@@ -66,9 +75,51 @@ Parameters:
 
 A cold build takes about 5 minutes. When it finishes, `tokenizers_c.lib` is in place, and `tokenizers_c.buildinfo.json` sits next to it. The buildinfo file records the commit, rustc, toolset, crate version and SHA256.
 
+#### Linux and Mac
+
+You need:
+
+- git and bash
+- Rust (rustup), with the target for your platform: `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, or both `aarch64-apple-darwin` and `x86_64-apple-darwin` on Mac
+- A C compiler (the library includes oniguruma, which is C). On Mac, the Xcode command line tools.
+
+Run this from the plugin folder:
+
+```bash
+./Scripts/BuildTokenizersLib.sh
+```
+
+With no `--target`, it builds for the machine it runs on. Build the Mac library on a Mac, or cross-compile it (below).
+
+Parameters:
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `--target` | the host | `linux-x64`, `linux-arm64` or `mac`. |
+| `--work-dir` | `$TMPDIR/tokenizers-cpp-build` | Where the source is cloned and built. Must be outside the plugin folder. |
+| `--ue-toolchain` | `$LINUX_MULTIARCH_ROOT` | Linux only. The Unreal Linux cross toolchain. Its clang and sysroot compile the C code, so it matches the glibc the engine links. Needed to cross-build `linux-arm64` on an x86_64 host, or to build Linux on Windows/Mac. |
+| `--macos-min` | `11.0` | Mac only. `MACOSX_DEPLOYMENT_TARGET`. |
+| `--clean` | off | Start from a clean build. |
+
+The script checks the pinned commit, builds with `cargo --locked`, checks that all 13 C API functions are in the library, and checks that the library needs no system library the plugin does not link. On Linux it also fails if the C code needs glibc 2.38 or newer. `tokenizers_c.buildinfo.json` is written next to the library.
+
+Without the Unreal toolchain, the host compiler is used. That works on current distributions; the script tells you if it does not.
+
+To use another C compiler, set cc-rs's own variable for the Rust target, for example `CC_aarch64_unknown_linux_gnu`. This also lets you cross-compile, for example the Mac library on Linux with `zig cc` (set `CC_aarch64_apple_darwin` and `CC_x86_64_apple_darwin`; it then needs `llvm-nm` and a `lipo`).
+
+Then test the library without the engine:
+
+```bash
+./Scripts/TestTokenizersLib.sh
+```
+
+It links `Tests/Native/TokenizersLibSmoke.cpp` into a shared library, the way Unreal links the Tokenizers module. It allows no undefined symbols and uses exactly the system libraries `TokenizersLibrary.Build.cs` lists. Then it runs 11 checks on `Content/tokenizer.json`: encode, decode, non-ASCII round trip, a truncated batch, bad JSON, invalid UTF-8 and 4 threads. On Mac, `--arch arm64` or `--arch x86_64` picks the slice to test. `CXX`, `LDFLAGS` and `RUNNER` (for example `qemu-aarch64-static -L /usr/aarch64-linux-gnu`) set the compiler, extra link flags and an emulator. `--link-only` only links.
+
+The [Native libs workflow](.github/workflows/native-libs.yml) runs both scripts on GitHub Actions for Linux x64, Linux arm64, Mac arm64 and Mac x86_64. On Linux it also links against glibc 2.17 with libc++, as the Unreal toolchain does. Download the built libraries from the run's artifacts.
+
 ### Building a renamed copy
 
-Another plugin can ship its own copy of the library next to this one, if every symbol in its copy has a prefix. Without the prefix, the two copies collide at link time. `Scripts\MakePrefixedTokenizersLib.ps1` makes such a copy from the installed lib without rebuilding it:
+Win64 only for now. Another plugin can ship its own copy of the library next to this one, if every symbol in its copy has a prefix. Without the prefix, the two copies collide at link time. `Scripts\MakePrefixedTokenizersLib.ps1` makes such a copy from the installed lib without rebuilding it:
 
 ```powershell
 .\Scripts\MakePrefixedTokenizersLib.ps1 -InputLib .\Source\ThirdParty\tokenizersLibrary\x64\Release\tokenizers_c.lib -SymbolPrefix mpt_ -OutDir <dir>
@@ -201,6 +252,8 @@ Run the tests:
 ```
 UnrealEditor-Cmd.exe <Project>.uproject -ExecCmds="Automation RunTests Tokenizers; Quit" -unattended -nullrhi
 ```
+
+On Linux and Mac the editor binary is `UnrealEditor` (Linux: `Engine/Binaries/Linux/UnrealEditor`, Mac: `Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor`). The arguments are the same.
 
 ## License
 

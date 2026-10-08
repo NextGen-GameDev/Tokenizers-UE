@@ -1,0 +1,118 @@
+# Builds the native tokenizers library for Linux and Mac with Scripts/BuildTokenizersLib.sh and
+# runs the engine-free smoke test (Scripts/TestTokenizersLib.sh) on each platform. The built
+# libraries are uploaded as artifacts, ready to drop into Source/ThirdParty/tokenizersLibrary/.
+name: Native libs (Linux, Mac)
+
+on:
+  push:
+    paths:
+      - 'Scripts/BuildTokenizersLib.sh'
+      - 'Scripts/TestTokenizersLib.sh'
+      - 'Source/ThirdParty/tokenizersLibrary/**'
+      - 'Tests/Native/**'
+      - 'Content/tokenizer.json'
+      - '.github/workflows/native-libs.yml'
+  pull_request:
+    paths:
+      - 'Scripts/BuildTokenizersLib.sh'
+      - 'Scripts/TestTokenizersLib.sh'
+      - 'Source/ThirdParty/tokenizersLibrary/**'
+      - 'Tests/Native/**'
+      - 'Content/tokenizer.json'
+      - '.github/workflows/native-libs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-24.04
+            triple: x86_64-unknown-linux-gnu
+            zig_target: x86_64-linux-gnu.2.17
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+            triple: aarch64-unknown-linux-gnu
+            zig_target: aarch64-linux-gnu.2.17
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc -vV
+
+      - name: Build the library
+        run: ./Scripts/BuildTokenizersLib.sh --target ${{ matrix.target }} --work-dir "$RUNNER_TEMP/tokenizers-cpp-build"
+
+      - name: Smoke test (host toolchain)
+        run: ./Scripts/TestTokenizersLib.sh --target ${{ matrix.target }} --out-dir "$RUNNER_TEMP/smoke-host"
+
+      # Unreal links Linux modules against glibc 2.17 and libc++; zig can target exactly that.
+      - name: Smoke test (glibc 2.17, libc++, like the Unreal toolchain)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zig-venv"
+          "$RUNNER_TEMP/zig-venv/bin/pip" install --quiet ziglang==0.17.0
+          CXX="$RUNNER_TEMP/zig-venv/bin/python -m ziglang c++ -target ${{ matrix.zig_target }}" \
+            ./Scripts/TestTokenizersLib.sh --target ${{ matrix.target }} --out-dir "$RUNNER_TEMP/smoke-glibc217"
+          if objdump -T "$RUNNER_TEMP/smoke-glibc217/libTokenizersLibSmoke.so" | grep -oE 'GLIBC_2\.(1[89]|[2-9][0-9])'; then
+            echo "::error::the smoke module needs a glibc newer than 2.17"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tokenizersLibrary-${{ matrix.target }}
+          path: |
+            Source/ThirdParty/tokenizersLibrary/Linux/${{ matrix.triple }}/libtokenizers_c.a
+            Source/ThirdParty/tokenizersLibrary/Linux/${{ matrix.triple }}/tokenizers_c.buildinfo.json
+
+  mac:
+    name: mac
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          rustc -vV
+
+      - name: Build the universal library
+        run: ./Scripts/BuildTokenizersLib.sh --target mac --work-dir "$RUNNER_TEMP/tokenizers-cpp-build"
+
+      - name: Smoke test (arm64 slice)
+        run: ./Scripts/TestTokenizersLib.sh --target mac --arch arm64 --out-dir "$RUNNER_TEMP/smoke-arm64"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tokenizersLibrary-mac
+          path: |
+            Source/ThirdParty/tokenizersLibrary/Mac/libtokenizers_c.a
+            Source/ThirdParty/tokenizersLibrary/Mac/tokenizers_c.buildinfo.json
+
+  # The x86_64 slice of the same universal lib, run natively on an Intel Mac.
+  mac-x86_64:
+    name: mac (x86_64 slice)
+    needs: mac
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tokenizersLibrary-mac
+          path: Source/ThirdParty/tokenizersLibrary/Mac
+
+      - name: Smoke test (x86_64 slice)
+        run: ./Scripts/TestTokenizersLib.sh --target mac --arch x86_64 --out-dir "$RUNNER_TEMP/smoke-x86_64"
