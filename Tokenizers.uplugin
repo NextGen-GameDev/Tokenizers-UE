@@ -5,7 +5,7 @@
 	"FriendlyName": "Tokenizers",
 	"Description": "Hugging Face tokenizers (tokenizer.json) for Unreal Engine: encode, decode and padded batches, thread-safe, via a Rust static library.",
 	"Category": "AI",
-	"CreatedBy": "NextGen-GameDev",
+	"CreatedBy": "Holdout Labs, LLC",
 	"CreatedByURL": "https://github.com/NextGen-GameDev/Tokenizers-UE",
 	"DocsURL": "https://github.com/NextGen-GameDev/Tokenizers-UE",
 	"MarketplaceURL": "",

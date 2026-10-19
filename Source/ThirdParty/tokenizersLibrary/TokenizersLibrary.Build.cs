@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Copyright Holdout Labs, LLC. Licensed under the MIT License.
 
 using System.IO;
 using UnrealBuildTool;
