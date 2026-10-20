@@ -1,4 +1,4 @@
-// Copyright Holdout Labs, LLC. Licensed under the MIT License.
+// Copyright 2026 Holdout Labs, LLC. Licensed under the MIT License.
 
 using System.IO;
 using UnrealBuildTool;

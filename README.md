@@ -42,6 +42,8 @@ Built and tested on UE 5.8 (5.8.3). UE 5.6 has not been tested.
 
 ### Build the native library
 
+The Fab package already contains the library, so Fab users can skip this section. The build scripts are not in the Fab package; they are in the GitHub repository, https://github.com/NextGen-GameDev/Tokenizers-UE.
+
 The plugin links `Source/ThirdParty/tokenizersLibrary/x64/Release/tokenizers_c.lib`. It is built from a pinned fork, [P1ayer-1/tokenizers-cpp](https://github.com/P1ayer-1/tokenizers-cpp), tag `v0.1.5`. The fork returns error codes instead of aborting, adds truncated batch encoding and never pads in the encode calls.
 
 You need:
