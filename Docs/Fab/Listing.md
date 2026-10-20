@@ -63,7 +63,7 @@ Code Plugins (pick the closest subcategory in the portal). The `.uplugin` catego
 
 ## What's included
 
-- The plugin: Tokenizers runtime module (Win64), the library build scripts (`Scripts/`), one sample tokenizer file in `Content/`.
+- The plugin: Tokenizers runtime module (Win64), the prebuilt library, one sample tokenizer file in `Content/`.
 - `README.md`, `CHANGELOG.md`, `THIRD_PARTY_NOTICES.md`, `LICENSE`, `LICENSE-APACHE`.
 - Not included: tokenizer files for your models. Get them from the model's Hugging Face page.
 
