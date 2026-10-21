@@ -96,7 +96,7 @@ The two copies are separate libraries, each with its own allocator and thread-lo
 All nodes are in the **Tokenizer** category.
 
 1. Call **Construct Object from Class** with class **Tokenizer Wrapper**. Store the result in a variable so it stays alive.
-2. Call **Initialize Tokenizer From File** on it. Pass a path to a `tokenizer.json`. Check the returned Boolean. If it is false, print **Get Last Error**.
+2. Call **Initialize Tokenizer From File** on it. Pass a path to a `tokenizer.json` (download it from the model's Hugging Face page, under "Files and versions", and put it in your project's `Content` folder). Check the returned Boolean. If it is false, print **Get Last Error**.
 3. Call **Encode** with your text. Set **Add Special Tokens** to true for BERT-style models. You get an array of ints.
 4. Call **Decode** with the ids to get the text back.
 
@@ -130,7 +130,7 @@ else
 }
 ```
 
-The relative path `tokenizer.json` is looked up as described in the API reference below.
+The relative path `tokenizer.json` is looked up as described in the API reference below. Put the file in your project's `Content` folder. The GitHub download also has an example (GPT-NeoX) in the plugin's `Content` folder; the Fab package does not.
 
 ## API reference
 
@@ -206,7 +206,7 @@ UnrealEditor-Cmd.exe <Project>.uproject -ExecCmds="Automation RunTests Tokenizer
 
 ## License
 
-The plugin code is under the MIT License (`LICENSE`). Files with an Apache-2.0 header are under the Apache License 2.0 (`LICENSE-APACHE`). Third-party components and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+From GitHub: the plugin code is under the MIT License (`LICENSE`), and files with an Apache-2.0 header are under the Apache License 2.0 (`LICENSE-APACHE`). From Fab: the Fab license applies, and the package has no separate license file. Third-party components and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Credits
 

@@ -63,8 +63,9 @@ Code Plugins (pick the closest subcategory in the portal). The `.uplugin` catego
 
 ## What's included
 
-- The plugin: Tokenizers runtime module (Win64), the prebuilt library, one sample tokenizer file in `Content/`.
-- `README.md`, `CHANGELOG.md`, `THIRD_PARTY_NOTICES.md`, `LICENSE`, `LICENSE-APACHE`.
+- The plugin: Tokenizers runtime module (Win64) and the prebuilt library. No Content folder.
+- `README.md`, `CHANGELOG.md`, `THIRD_PARTY_NOTICES.md` (includes the Apache-2.0 text the third-party components need).
+- Not in the Fab package (GitHub only, per Fab review): the example `Content/tokenizer.json`, the `LICENSE` files (the Fab license applies), the build scripts.
 - Not included: tokenizer files for your models. Get them from the model's Hugging Face page.
 
 ## Requirements
@@ -86,9 +87,9 @@ Issues: https://github.com/NextGen-GameDev/Tokenizers-UE/issues
 
 ## License notes
 
-- The plugin code is under the MIT License (`LICENSE`). Files with an Apache-2.0 header are under the Apache License 2.0 (`LICENSE-APACHE`).
+- Fab package: the Fab license applies; no license file ships. GitHub: MIT (`LICENSE`), Apache-2.0 for files with that header (`LICENSE-APACHE`).
 - Third-party components and licenses are in `THIRD_PARTY_NOTICES.md`.
-- Free. The code stays under MIT / Apache-2.0 as above; the license files ship in the package.
+- Free.
 
 ## Credits
 
