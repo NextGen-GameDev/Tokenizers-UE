@@ -1,5 +1,6 @@
 /*!
  *  Copyright (c) 2023 by Contributors
+ *  Modifications Copyright 2026 Holdout Labs, LLC. Licensed under the Apache License 2.0.
  * \file tokenizers_c.h
  * \brief C binding to tokenizers rust library
  *

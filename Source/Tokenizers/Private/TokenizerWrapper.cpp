@@ -1,4 +1,4 @@
-// Copyright NextGen-GameDev. Licensed under the Apache License 2.0.
+// Copyright 2026 Holdout Labs, LLC. Licensed under the Apache License 2.0.
 
 #include "TokenizerWrapper.h"
 

@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 2026 Holdout Labs, LLC. Licensed under the MIT License.
 
 #pragma once
 
